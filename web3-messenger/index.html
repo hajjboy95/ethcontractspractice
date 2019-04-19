@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Deploy a Remix Contract</title>
+
+    <link rel="stylesheet" type="text/css" href="main.css">
+
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+</head>
+
+<body>
+    <div>
+        <h1>Google.ie</h1>
+        <hr>
+
+        <label for="message">Message!</label>
+        <input id="userInput" type="text">
+
+        <button id="setMessageButton">Set secret message</button>
+
+        <p class="messages">
+
+        </p>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+
+    <script>
+        // Connect a the web3 provider
+        if (typeof web3 !== 'undefined') {
+            web3 = new Web3(web3.currentProvider);
+        } else {
+            web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:7545"));
+        }
+
+        // Set a default account
+        console.log(web3.eth.accounts)
+
+        web3.eth.defaultAccount = web3.eth.accounts[0];
+        var a = getTransactionsByAccount(web3.eth.defaultAccount)
+        a.forEach(function (e) {
+            let inp = web3.toAscii(e.input)
+            console.log(inp)
+            injectHTML(inp)
+        })
+
+        // Get the contract Abi
+        var RemixContract = web3.eth.contract([{
+                "constant": false,
+                "inputs": [{
+                    "name": "x",
+                    "type": "string"
+                }],
+                "name": "setMessage",
+                "outputs": [],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "getMessage",
+                "outputs": [{
+                    "name": "",
+                    "type": "string"
+                }],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ]);
+
+        // Get the contract abi
+        var myMessage = RemixContract.at('0xc62ee2c6f73d54cea171801e1f0723f4842d3568');
+
+        $("#setMessageButton").click(function () {
+            myMessage.setMessage($("#userInput").val());
+            let msg = myMessage.getMessage();
+            injectHTML(msg)
+        });
+
+        function injectHTML(msg) {
+            $("p.messages").append(msg).html($("p.messages").html() + "<br/>")
+        }
+
+        function getTransactionsByAccount(myaccount, startBlockNumber, endBlockNumber) {
+            var tx = []
+            if (endBlockNumber == null) {
+                endBlockNumber = web3.eth.blockNumber;
+                console.log("Using endBlockNumber: " + endBlockNumber);
+            }
+            if (startBlockNumber == null) {
+                startBlockNumber = endBlockNumber - 1000;
+                console.log("Using startBlockNumber: " + startBlockNumber);
+            }
+            console.log("Searching for transactions to/from account \"" + myaccount + "\" within blocks " +
+                startBlockNumber + " and " + endBlockNumber);
+
+            let firstTx = false
+            for (var i = startBlockNumber; i <= endBlockNumber; i++) {
+                if (i % 1000 == 0) {
+                    console.log("Searching block " + i);
+                }
+                var block = web3.eth.getBlock(i, true);
+                if (block != null && block.transactions != null) {
+                    block.transactions.forEach(function (e) {
+                        if (myaccount == "*" || myaccount == e.from || myaccount == e.to) {
+                            if (firstTx === true) {
+                                var ttt = {
+                                    "txHash": e.hash,
+                                    "input": e.input
+                                }
+                                tx.push(ttt)
+                            }
+                            firstTx = true
+
+                            // console.log("  tx hash          : " + e.hash + "\n" +
+                            //     "   nonce           : " + e.nonce + "\n" +
+                            //     "   blockHash       : " + e.blockHash + "\n" +
+                            //     "   blockNumber     : " + e.blockNumber + "\n" +
+                            //     "   transactionIndex: " + e.transactionIndex + "\n" +
+                            //     "   from            : " + e.from + "\n" +
+                            //     "   to              : " + e.to + "\n" +
+                            //     "   value           : " + e.value + "\n" +
+                            //     "   time            : " + block.timestamp + " " + new Date(block.timestamp *
+                            //         1000).toGMTString() + "\n" +
+                            //     "   gasPrice        : " + e.gasPrice + "\n" +
+                            //     "   gas             : " + e.gas + "\n" +
+                            //     "   input           : " + e.input);
+                        }
+                    })
+                }
+            }
+            return tx
+        }
+    </script>
+</body>
+
+</html>
